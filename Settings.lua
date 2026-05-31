@@ -353,14 +353,17 @@ end
 local function AttachGear(parentFrame)
     if parentFrame.settingsGear then return end
 
+    local GEAR_X = 14
+    local GEAR_Y = -12
+
     local gear = CreateFrame("Button", "AccountPlayedSettingsGear", UIParent)
-    gear:SetSize(20, 20)
+    gear:SetSize(18, 18)
     -- DIALOG strata level 150 — above the popup (100) but below TOOLTIP panels
     gear:SetFrameStrata("DIALOG")
     gear:SetFrameLevel(150)
 
     gear:ClearAllPoints()
-    gear:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 8, -7)
+    gear:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", GEAR_X, GEAR_Y)
 
     gear:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
     local nt = gear:GetNormalTexture()
@@ -383,7 +386,7 @@ local function AttachGear(parentFrame)
 
     parentFrame:HookScript("OnShow", function()
         gear:ClearAllPoints()
-        gear:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 8, -7)
+        gear:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", GEAR_X, GEAR_Y)
         gear:Show()
     end)
 

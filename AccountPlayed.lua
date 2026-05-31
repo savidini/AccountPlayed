@@ -1309,11 +1309,17 @@ local function CreateFlatButton(parent, label, width, height)
     button.bg:SetAllPoints()
     button.bg:SetColorTexture(0.12, 0.12, 0.12, 0.92)
 
-    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     button.text:SetAllPoints()
     button.text:SetJustifyH("CENTER")
     button.text:SetText(label)
     button.text:SetWordWrap(false)
+    button.text:SetShadowColor(0, 0, 0, 0)
+    button.text:SetShadowOffset(0, 0)
+    local fontPath, _, fontFlags = GameFontNormal:GetFont()
+    if fontPath then
+        button.text:SetFont(fontPath, 12, fontFlags or "")
+    end
 
     button:SetScript("OnEnter", function(self)
         if not self.active then
@@ -1340,7 +1346,7 @@ local function CreatePopup()
     local START_W = AccountPlayedPopupDB.width or 640
     local START_H = AccountPlayedPopupDB.height or 380
     local MIN_W, MIN_H = 500, 260
-    local MAX_W, MAX_H = 980, 560
+    local MAX_W, MAX_H = 1400, 900
 
     local f = CreateFrame("Frame", "AccountPlayedPopup", UIParent, "BackdropTemplate")
     f:SetSize(START_W, START_H)
@@ -1424,7 +1430,7 @@ local function CreatePopup()
     f.tabs = {}
     for i, tab in ipairs(TAB_ORDER) do
         local label = L[tab.labelKey] or tab.key
-        local button = CreateFlatButton(f, label, 84, 23)
+        local button = CreateFlatButton(f, label, 84, 26)
         button:SetPoint("TOPLEFT", f, "TOPLEFT", 16 + (i - 1) * 88, -42)
         button:SetScript("OnClick", function()
             AccountPlayedPopupDB.activeTab = tab.key
@@ -1436,7 +1442,7 @@ local function CreatePopup()
     end
 
     f.chartButtons = {}
-    local barButton = CreateFlatButton(f, L["CHART_BAR"] or "Bars", 54, 23)
+    local barButton = CreateFlatButton(f, L["CHART_BAR"] or "Bars", 58, 26)
     barButton:SetPoint("TOPRIGHT", f, "TOPRIGHT", -84, -42)
     barButton:SetScript("OnClick", function()
         AccountPlayedPopupDB.chartMode = "bar"
@@ -1446,7 +1452,7 @@ local function CreatePopup()
     end)
     f.chartButtons.bar = barButton
 
-    local pieButton = CreateFlatButton(f, L["CHART_PIE"] or "Pie", 54, 23)
+    local pieButton = CreateFlatButton(f, L["CHART_PIE"] or "Pie", 58, 26)
     pieButton:SetPoint("LEFT", barButton, "RIGHT", 4, 0)
     pieButton:SetScript("OnClick", function()
         AccountPlayedPopupDB.chartMode = "pie"
@@ -1457,8 +1463,8 @@ local function CreatePopup()
     f.chartButtons.pie = pieButton
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 15, -72)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -30, 50)
+    scrollFrame:SetPoint("TOPLEFT", 15, -78)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -44, 50)
     f.scrollFrame = scrollFrame
 
     local content = CreateFrame("Frame", nil, scrollFrame)
@@ -1536,7 +1542,7 @@ local function CreatePopup()
     local function UpdateLayoutSizes(self)
         local cw = self.scrollFrame:GetWidth()
         if not cw or cw <= 1 then
-            cw = math.max(1, self:GetWidth() - 45)
+            cw = math.max(1, self:GetWidth() - 59)
         end
 
         self.content:SetWidth(cw)
