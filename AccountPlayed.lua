@@ -614,8 +614,11 @@ local GROUP_FIELDS = {
 
 local ROW_H             = 24
 local CHARACTER_ROW_H   = 25
-local PIE_SLICE_COUNT   = 84
+local PIE_SLICE_COUNT   = 240
 local PIE_FRAME_H       = 168
+local PIE_RADIUS        = 58
+local PIE_SEGMENT_W     = 4
+local PIE_SEGMENT_H     = 14
 local LABEL_COL_W       = 150
 local VALUE_COL_W       = 110
 local RIGHT_MARGIN      = 4
@@ -976,8 +979,9 @@ local function EnsurePieSlices(frame)
 
     for i = 1, PIE_SLICE_COUNT do
         local slice = frame.pieFrame:CreateTexture(nil, "ARTWORK")
-        slice:SetSize(9, 9)
-        slice:SetColorTexture(0.2, 0.2, 0.2, 0.15)
+        slice:SetTexture("Interface\\Buttons\\WHITE8X8")
+        slice:SetSize(PIE_SEGMENT_W, PIE_SEGMENT_H)
+        slice:SetVertexColor(0.2, 0.2, 0.2, 0.15)
         slice:Hide()
         AP.pieSlices[i] = slice
     end
@@ -1009,7 +1013,6 @@ local function RenderPie(frame, entries, accountTotal)
 
     local currentIndex = 1
     local currentEnd = entries[1].time / accountTotal
-    local radius = 58
 
     for i, slice in ipairs(AP.pieSlices) do
         local ratio = (i - 0.5) / PIE_SLICE_COUNT
@@ -1021,12 +1024,16 @@ local function RenderPie(frame, entries, accountTotal)
         local entry = entries[currentIndex]
         local color = entry and entry.color or { r = 0.4, g = 0.4, b = 0.4 }
         local angle = (i - 1) / PIE_SLICE_COUNT * math.pi * 2
-        local x = math.cos(angle) * radius
-        local y = math.sin(angle) * radius
+        local x = math.cos(angle) * PIE_RADIUS
+        local y = math.sin(angle) * PIE_RADIUS
 
         slice:ClearAllPoints()
         slice:SetPoint("CENTER", frame.pieAnchor, "CENTER", x, y)
-        slice:SetColorTexture(color.r, color.g, color.b, 0.95)
+        slice:SetSize(PIE_SEGMENT_W, PIE_SEGMENT_H)
+        if slice.SetRotation then
+            slice:SetRotation(angle + math.pi / 2)
+        end
+        slice:SetVertexColor(color.r, color.g, color.b, 0.95)
         slice:Show()
     end
 
