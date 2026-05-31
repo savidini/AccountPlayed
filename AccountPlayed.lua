@@ -619,6 +619,8 @@ local PIE_FRAME_H       = 168
 local PIE_RADIUS        = 58
 local PIE_SEGMENT_W     = 4
 local PIE_SEGMENT_H     = 14
+local PIE_INNER_RADIUS  = PIE_RADIUS - PIE_SEGMENT_H
+local PIE_OUTER_RADIUS  = PIE_RADIUS + PIE_SEGMENT_H
 local LABEL_COL_W       = 150
 local VALUE_COL_W       = 110
 local RIGHT_MARGIN      = 4
@@ -766,6 +768,23 @@ local function AddEntryTooltipLines(entry)
     end
 end
 
+local function ShowEntryTooltip(owner, entry)
+    if not entry then return end
+
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(entry.label, 1, 1, 1)
+    GameTooltip:AddDoubleLine(
+        string.format(L["GROUP_CHARACTER_COUNT"] or "%d characters", entry.count or 0),
+        FormatTimeDetailed(entry.time, AccountPlayedPopupDB.useYears),
+        0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddLine(" ")
+    AddEntryTooltipLines(entry)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(L["CLICK_TO_PRINT"], 0.5, 0.5, 0.5)
+    GameTooltip:AddLine(L["CHAR_PANEL_RIGHT_CLICK"], 0.5, 0.5, 0.5)
+    GameTooltip:Show()
+end
+
 local function CreateDistributionRow(parent)
     local row = CreateFrame("Button", nil, parent)
     row:SetHeight(ROW_H)
@@ -810,18 +829,7 @@ local function CreateDistributionRow(parent)
     row:SetScript("OnEnter", function(self)
         self.highlight:Show()
         if self.entry then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:AddLine(self.entry.label, 1, 1, 1)
-            GameTooltip:AddDoubleLine(
-                string.format(L["GROUP_CHARACTER_COUNT"] or "%d characters", self.entry.count or 0),
-                FormatTimeDetailed(self.entry.time, AccountPlayedPopupDB.useYears),
-                0.7, 0.7, 0.7, 1, 1, 1)
-            GameTooltip:AddLine(" ")
-            AddEntryTooltipLines(self.entry)
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(L["CLICK_TO_PRINT"], 0.5, 0.5, 0.5)
-            GameTooltip:AddLine(L["CHAR_PANEL_RIGHT_CLICK"], 0.5, 0.5, 0.5)
-            GameTooltip:Show()
+            ShowEntryTooltip(self, self.entry)
         end
     end)
 
@@ -993,8 +1001,81 @@ local function HidePie(frame)
     if frame.pieFrame then
         frame.pieFrame:Hide()
     end
+    if frame.pieHitFrame then
+        frame.pieHitFrame.entry = nil
+        frame.pieHitFrame:Hide()
+    end
+    frame.pieEntries = nil
+    frame.pieAccountTotal = nil
     for _, slice in ipairs(AP.pieSlices) do
         slice:Hide()
+    end
+end
+
+local function GetPositiveAngle(dx, dy)
+    local angle
+    if dx == 0 then
+        angle = dy >= 0 and math.pi / 2 or math.pi * 1.5
+    else
+        angle = math.atan(dy / dx)
+        if dx < 0 then
+            angle = angle + math.pi
+        elseif dy < 0 then
+            angle = angle + math.pi * 2
+        end
+    end
+    return angle
+end
+
+local function GetEntryAtPieRatio(entries, ratio)
+    if not entries or #entries == 0 then return nil end
+
+    local cumulative = 0
+    for _, entry in ipairs(entries) do
+        cumulative = cumulative + (entry.pieShare or 0)
+        if ratio <= cumulative then
+            return entry
+        end
+    end
+
+    return entries[#entries]
+end
+
+local function GetPieEntryAtCursor(frame)
+    if not frame.pieAnchor or not frame.pieEntries then return nil end
+
+    local scale = frame.pieAnchor:GetEffectiveScale() or UIParent:GetEffectiveScale() or 1
+    local cursorX, cursorY = GetCursorPosition()
+    local anchorX, anchorY = frame.pieAnchor:GetCenter()
+    if not cursorX or not cursorY or not anchorX or not anchorY then return nil end
+
+    cursorX = cursorX / scale
+    cursorY = cursorY / scale
+
+    local dx = cursorX - anchorX
+    local dy = cursorY - anchorY
+    local dist = (dx * dx + dy * dy) ^ 0.5
+    if dist < PIE_INNER_RADIUS or dist > PIE_OUTER_RADIUS then
+        return nil
+    end
+
+    local angle = GetPositiveAngle(dx, dy)
+    return GetEntryAtPieRatio(frame.pieEntries, angle / (math.pi * 2))
+end
+
+local function UpdatePieHover(hitFrame)
+    local parent = hitFrame.ownerFrame or hitFrame:GetParent()
+    local entry = GetPieEntryAtCursor(parent)
+
+    if entry ~= hitFrame.entry then
+        hitFrame.entry = entry
+        if entry then
+            ShowEntryTooltip(hitFrame, entry)
+        else
+            GameTooltip:Hide()
+        end
+    elseif entry and not GameTooltip:IsShown() then
+        ShowEntryTooltip(hitFrame, entry)
     end
 end
 
@@ -1007,12 +1088,19 @@ local function RenderPie(frame, entries, accountTotal)
     end
 
     frame.pieFrame:Show()
+    frame.pieEntries = entries
+    frame.pieAccountTotal = accountTotal
+
     local topEntry = entries[1]
     frame.pieFrame.centerText:SetText(string.format("%s\n%s", topEntry.label, FormatDistributionValue(topEntry.time, accountTotal)))
     frame.pieFrame.centerText:SetTextColor(topEntry.color.r, topEntry.color.g, topEntry.color.b)
 
     local currentIndex = 1
     local currentEnd = entries[1].time / accountTotal
+
+    for _, entry in ipairs(entries) do
+        entry.pieShare = entry.time / accountTotal
+    end
 
     for i, slice in ipairs(AP.pieSlices) do
         local ratio = (i - 0.5) / PIE_SLICE_COUNT
@@ -1035,6 +1123,11 @@ local function RenderPie(frame, entries, accountTotal)
         end
         slice:SetVertexColor(color.r, color.g, color.b, 0.95)
         slice:Show()
+    end
+
+    if frame.pieHitFrame then
+        frame.pieHitFrame:SetSize(PIE_OUTER_RADIUS * 2, PIE_OUTER_RADIUS * 2)
+        frame.pieHitFrame:Show()
     end
 
     return PIE_FRAME_H
@@ -1395,6 +1488,36 @@ local function CreatePopup()
     f.pieAnchor = CreateFrame("Frame", nil, f.pieFrame)
     f.pieAnchor:SetSize(1, 1)
     f.pieAnchor:SetPoint("TOP", f.pieFrame, "TOP", 0, -78)
+
+    f.pieHitFrame = CreateFrame("Button", nil, f.pieFrame)
+    f.pieHitFrame.ownerFrame = f
+    f.pieHitFrame:SetSize(PIE_OUTER_RADIUS * 2, PIE_OUTER_RADIUS * 2)
+    f.pieHitFrame:SetPoint("CENTER", f.pieAnchor, "CENTER", 0, 0)
+    f.pieHitFrame:EnableMouse(true)
+    f.pieHitFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    f.pieHitFrame:SetScript("OnEnter", function(self)
+        self:SetScript("OnUpdate", UpdatePieHover)
+        UpdatePieHover(self)
+    end)
+    f.pieHitFrame:SetScript("OnLeave", function(self)
+        self:SetScript("OnUpdate", nil)
+        self.entry = nil
+        GameTooltip:Hide()
+    end)
+    f.pieHitFrame:SetScript("OnClick", function(self, button)
+        local entry = self.entry or GetPieEntryAtCursor(self.ownerFrame)
+        if not entry then return end
+
+        if button == "RightButton" then
+            GameTooltip:Hide()
+            PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+            AP.ShowGroupCharPanel(entry.kind, entry.key, entry.label, entry.color, false)
+        else
+            PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+            PrintCharactersForEntry(entry)
+        end
+    end)
+    f.pieHitFrame:Hide()
 
     f.pieFrame.centerText = f.pieFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     f.pieFrame.centerText:SetPoint("CENTER", f.pieAnchor, "CENTER", 0, 0)
