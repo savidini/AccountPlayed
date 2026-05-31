@@ -1410,6 +1410,25 @@ local function CreatePopup()
     EnsureDistributionRows(f, 8)
     EnsureCharacterRows(f, 8)
 
+    local function UpdateLayoutSizes(self)
+        local cw = self.scrollFrame:GetWidth()
+        if not cw or cw <= 1 then
+            cw = math.max(1, self:GetWidth() - 45)
+        end
+
+        self.content:SetWidth(cw)
+        if self.pieFrame then
+            self.pieFrame:SetWidth(cw)
+        end
+
+        for _, row in ipairs(AP.popupRows) do
+            row:SetWidth(cw)
+        end
+        for _, row in ipairs(AP.characterRows) do
+            row:SetWidth(cw)
+        end
+    end
+
     f:SetScript("OnSizeChanged", function(self, w, h)
         if w < MIN_W then self:SetWidth(MIN_W) end
         if h < MIN_H then self:SetHeight(MIN_H) end
@@ -1419,15 +1438,7 @@ local function CreatePopup()
         AccountPlayedPopupDB.width = self:GetWidth()
         AccountPlayedPopupDB.height = self:GetHeight()
 
-        local cw = self.scrollFrame:GetWidth()
-        self.content:SetWidth(cw)
-        for _, row in ipairs(AP.popupRows) do
-            row:SetWidth(cw)
-        end
-        for _, row in ipairs(AP.characterRows) do
-            row:SetWidth(cw)
-        end
-
+        UpdateLayoutSizes(self)
         UpdateScrollBarVisibility(self)
     end)
 
@@ -1465,6 +1476,8 @@ local function CreatePopup()
     -- Display update method
     f.UpdateDisplay = function(self)
         EnsurePopupDefaults()
+        UpdateLayoutSizes(self)
+
         local activeTab = GetActiveTab()
         UpdateTabButtons(self)
         UpdateChartButtons(self)
@@ -1493,8 +1506,13 @@ local function UpdatePopup()
     if f.formatCheckbox then
         f.formatCheckbox:SetChecked(AccountPlayedPopupDB.useYears)
     end
-    f:UpdateDisplay()
     f:Show()
+    f:UpdateDisplay()
+    C_Timer.After(0, function()
+        if f:IsShown() then
+            f:UpdateDisplay()
+        end
+    end)
 end
 
 --------------------------------------------------
