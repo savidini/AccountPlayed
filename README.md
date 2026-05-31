@@ -9,7 +9,11 @@ Simple WoW addon to track and display /played time. sorting by class across all 
 
 **Features:**
 - View your account's top played time by class
+- View all tracked characters sorted by /played time
+- View optional race and faction distribution tabs
 - Sorted by (class / total account played) as a percentage
+- Toggle distribution tabs between bar and pie chart views
+- See total tracked character count in the popup footer
 - Small popup UI (resize, drag, move, and scroll as you please!)
 - Minimap button to toggle UI (fades when mouse is not over minimap)
 - Hover over classes to get a popup of all characters making up the playtime
@@ -24,7 +28,11 @@ Simple WoW addon to track and display /played time. sorting by class across all 
 - `/aplayed show`    - toggle class time window
 - `/aplayed minimap` - toggle the AccountPlayed minimap icon on/off
 - `/aplayed reset`   - reset the position of the minimap button to the bottom left of the minimap
-- `/apdebug`         - prints a list of all stored characters to chat in the following format: `Realm-Name: TimePlayed (CLASS)`
+- `/apdebug`         - prints a list of all stored characters to chat in the following format: `Realm-Name: TimePlayed (CLASS / RACE / FACTION)`
+
+**Saved data note:**
+Race and faction are captured the next time each character reports `/played`.
+Older entries are preserved and appear in an `Unknown` bucket until that character is logged in again.
 
 **Deprecated** (will be removed in a future update):
 - `/apclasswin` - toggle class time window (use new API: `/aplayed show`)

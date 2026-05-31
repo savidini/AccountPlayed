@@ -11,6 +11,8 @@ local AP = AccountPlayed
 local SETTINGS_DEFAULTS = {
     textScale = 1.0,
     valueMode = "both",
+    activeTab = "class",
+    chartMode = "bar",
 }
 
 local function EnsureSettingsDefaults()
@@ -35,28 +37,30 @@ end
 
 local function ApplyScaleToRows(scale)
     if not AP.popupRows then return end
+
+    local function ApplyFont(fs, size)
+        if not fs then return end
+        local path, flags = GetFontData(fs)
+        fs:SetFont(path, size * scale, flags)
+        fs:SetWordWrap(false)
+    end
+
     for _, row in ipairs(AP.popupRows) do
-        if row.classText then
-            local path, flags = GetFontData(row.classText)
-            row.classText:SetFont(path, 12 * scale, flags)
-            row.classText:SetWordWrap(false)
-        end
-        if row.valueText then
-            local path, flags = GetFontData(row.valueText)
-            row.valueText:SetFont(path, 12 * scale, flags)
-            row.valueText:SetWordWrap(false)
+        ApplyFont(row.classText, 12)
+        ApplyFont(row.valueText, 12)
+    end
+    if AP.characterRows then
+        for _, row in ipairs(AP.characterRows) do
+            ApplyFont(row.nameText, 12)
+            ApplyFont(row.metaText, 11)
+            ApplyFont(row.timeText, 12)
         end
     end
     if AP.popupFrame then
-        if AP.popupFrame.title then
-            local path, flags = GetFontData(AP.popupFrame.title)
-            AP.popupFrame.title:SetFont(path, 14 * scale, flags)
-            AP.popupFrame.title:SetWordWrap(false)
-        end
-        if AP.popupFrame.totalRow then
-            local path, flags = GetFontData(AP.popupFrame.totalRow)
-            AP.popupFrame.totalRow:SetFont(path, 13 * scale, flags)
-            AP.popupFrame.totalRow:SetWordWrap(false)
+        ApplyFont(AP.popupFrame.title, 14)
+        ApplyFont(AP.popupFrame.totalRow, 13)
+        if AP.popupFrame.emptyText then
+            ApplyFont(AP.popupFrame.emptyText, 12)
         end
         -- Re-render value text so the % toggle takes effect immediately
         if AP.popupFrame.UpdateDisplay then

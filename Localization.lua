@@ -4,9 +4,18 @@ local L = {}
 addonTable.L = L
 
 L["ADDON_NAME"] = "Account Played"
-L["WINDOW_TITLE"] = "Account Played - Time by Class"
+L["WINDOW_TITLE"] = "Account Played"
 L["NO_DATA"] = "No data yet"
 L["TOTAL"] = "TOTAL: "
+L["UNKNOWN"] = "Unknown"
+L["TRACKED_COUNT"] = "%d characters tracked"
+L["GROUP_CHARACTER_COUNT"] = "%d characters"
+L["TAB_CLASS"] = "Class"
+L["TAB_CHARACTERS"] = "Characters"
+L["TAB_RACE"] = "Race"
+L["TAB_FACTION"] = "Faction"
+L["CHART_BAR"] = "Bars"
+L["CHART_PIE"] = "Pie"
 L["DEBUG_HEADER"] = "[AccountPlayed Debug] Known characters:"
 L["DB_CORRUPTED"] = "Account Played: SavedVariables corrupted, resetting!"
 L["USE_YEARS_LABEL"] = "Years"
@@ -72,7 +81,7 @@ L["SETTINGS_DAYS_ONLY_TIP"]   = "Show only the time value after each bar, hiding
 if GetLocale() == "zhCN" then
   -- (Translator: https://github.com/SGSwdzgr)
   L["ADDON_NAME"] = "账号游戏时间"
-  L["WINDOW_TITLE"] = "账号游戏时间 - 按职业统计"
+  L["WINDOW_TITLE"] = "账号游戏时间"
   L["NO_DATA"] = "暂无数据"
   L["TOTAL"] = "总计: "
   L["DEBUG_HEADER"] = "[AccountPlayed调试] 已知角色:"
@@ -130,7 +139,7 @@ end
 if GetLocale() == "zhTW" then
   -- (Translator: https://github.com/SGSwdzgr)
   L["ADDON_NAME"] = "帳號遊戲時間"
-  L["WINDOW_TITLE"] = "帳號遊戲時間 - 按職業統計"
+  L["WINDOW_TITLE"] = "帳號遊戲時間"
   L["NO_DATA"] = "暫無資料"
   L["TOTAL"] = "總計: "
   L["DEBUG_HEADER"] = "[AccountPlayed調試] 已知角色:"
@@ -188,7 +197,7 @@ end
 if GetLocale() == "frFR" then
   -- Translator: https://github.com/ZelionGG
   L["ADDON_NAME"] = "Account Played"
-  L["WINDOW_TITLE"] = "Account Played - Temps par Classe"
+  L["WINDOW_TITLE"] = "Account Played"
   L["NO_DATA"] = "Aucune donnée"
   L["TOTAL"] = "Total : "
   L["DEBUG_HEADER"] = "[AccountPlayed Debug] Personnages connus :"
@@ -246,7 +255,7 @@ end
 if GetLocale() == "ruRU" then
   -- Translator ZamestoTV
   L["ADDON_NAME"] = "Account Played"
-  L["WINDOW_TITLE"] = "Общее время - по классам"
+  L["WINDOW_TITLE"] = "Account Played"
   L["NO_DATA"] = "Нет данных"
   L["TOTAL"] = "ИТОГО: "
   L["DEBUG_HEADER"] = "[AccountPlayed Debug] Список персонажей:"
@@ -304,7 +313,7 @@ end
 if GetLocale() == "deDE" then
   -- Translator: https://github.com/DaBear78
   L["ADDON_NAME"] = "Account Played"
-  L["WINDOW_TITLE"] = "Account Played - Spielzeit nach Klasse"
+  L["WINDOW_TITLE"] = "Account Played"
   L["NO_DATA"] = "Noch keine Daten"
   L["TOTAL"] = "GESAMT: "
   L["DEBUG_HEADER"] = "[AccountPlayed Debug] Bekannte Charaktere:"
@@ -362,7 +371,7 @@ end
 if GetLocale() == "esMX" then
   -- Translator: Smooth
   L["ADDON_NAME"] = "Account Played"
-  L["WINDOW_TITLE"] = "Account Played  - Tiempo por Clase"
+  L["WINDOW_TITLE"] = "Account Played"
   L["NO_DATA"] = "Sin información"
   L["TOTAL"] = "TOTAL:"
   L["DEBUG_HEADER"] = "[AccountPlayed Debug] Personajes conocidos:"
@@ -420,7 +429,7 @@ end
 if GetLocale() == "esES" then
   -- Translator: Smooth
   L["ADDON_NAME"] = "Account Played"
-  L["WINDOW_TITLE"] = "Account Played  - Tiempo por Clase"
+  L["WINDOW_TITLE"] = "Account Played"
   L["NO_DATA"] = "Sin información"
   L["TOTAL"] = "TOTAL:"
   L["DEBUG_HEADER"] = "[AccountPlayed Debug] Personajes conocidos:"
@@ -478,7 +487,7 @@ end
 if GetLocale() == "ptBR" then
   -- Translator: Smooth
   L["ADDON_NAME"] = "Account Played"
-  L["WINDOW_TITLE"] = "Account Played - Tempo por Classe"
+  L["WINDOW_TITLE"] = "Account Played"
   L["NO_DATA"] = "Sem informação"
   L["TOTAL"] = "TOTAL:"
   L["DEBUG_HEADER"] = "[AccountPlayed Debug] Personagens conhecidos:"

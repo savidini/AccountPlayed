@@ -28,13 +28,13 @@
 
     EVENTS
     ------
-    "CharacterUpdated"  ( realm, name, seconds, classFile )
-        Fires after AccountPlayedDB is written for the current character
-        (i.e. after every TIME_PLAYED_MSG that changes the stored value).
+    "CharacterUpdated"  ( realm, name, seconds, classFile, raceFile, factionFile )
+        Fires after AccountPlayedDB is written/refreshed for the current character.
 
     API VERSION
     -----------
     1  –  initial release
+    2  –  race/faction metadata and distribution totals
 --]]
 
 ------------------------------------------------------------------------
@@ -43,7 +43,7 @@
 
 
 -- Both LibStub and CallbackHandler-1.0 are already loaded by AccountPlayed.
-local MAJOR, MINOR = "AccountPlayed-1.0", 1
+local MAJOR, MINOR = "AccountPlayed-1.0", 2
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end  -- already up-to-date; nothing to do
 
@@ -53,7 +53,7 @@ if not lib then return end  -- already up-to-date; nothing to do
 -- (Same pattern BigWigs uses: BigWigs.callbacks = CH:New(BigWigs))
 lib.callbacks = lib.callbacks or LibStub("CallbackHandler-1.0"):New(lib)
 
-lib.API_VERSION = 1
+lib.API_VERSION = 2
 
 ------------------------------------------------------------------------
 -- Private helpers
@@ -70,6 +70,41 @@ end
 
 local function CurrentRealmName()
     return (GetNormalizedRealmName and GetNormalizedRealmName()) or GetRealmName()
+end
+
+local function NormalizeGroupKey(value)
+    if value == nil or value == "" then
+        return "UNKNOWN"
+    end
+    return value
+end
+
+local function BuildCharacterRecord(key, data)
+    local realm, name = ParseKey(key)
+    return {
+        key         = key,
+        name        = name,
+        realm       = realm,
+        class       = NormalizeGroupKey(data.class),
+        race        = NormalizeGroupKey(data.race),
+        raceName    = data.raceName,
+        faction     = NormalizeGroupKey(data.faction),
+        factionName = data.factionName,
+        time        = data.time,
+    }
+end
+
+local function GetTotalsByField(field)
+    local totals, accountTotal = {}, 0
+    if type(AccountPlayedDB) ~= "table" then return totals, 0 end
+    for _, data in pairs(AccountPlayedDB) do
+        if type(data) == "table" and type(data.time) == "number" then
+            local key = NormalizeGroupKey(data[field])
+            totals[key] = (totals[key] or 0) + data.time
+            accountTotal = accountTotal + data.time
+        end
+    end
+    return totals, accountTotal
 end
 
 ------------------------------------------------------------------------
@@ -104,57 +139,57 @@ end
 --- Per-class totals.
 -- @return classTotals table (classFile → seconds), accountTotal number
 function lib:GetClassTotals()
-    local totals, accountTotal = {}, 0
-    if type(AccountPlayedDB) ~= "table" then return totals, 0 end
-    for _, data in pairs(AccountPlayedDB) do
-        if type(data) == "table" and data.time and data.class then
-            totals[data.class] = (totals[data.class] or 0) + data.time
-            accountTotal = accountTotal + data.time
-        end
-    end
-    return totals, accountTotal
+    return GetTotalsByField("class")
+end
+
+--- Per-race totals.
+-- @return raceTotals table (raceFile → seconds), accountTotal number
+function lib:GetRaceTotals()
+    return GetTotalsByField("race")
+end
+
+--- Per-faction totals.
+-- @return factionTotals table (factionFile → seconds), accountTotal number
+function lib:GetFactionTotals()
+    return GetTotalsByField("faction")
 end
 
 --- All tracked characters, sorted descending by time.
--- Each entry: { key, name, realm, class, time }
+-- Each entry: { key, name, realm, class, race, raceName, faction, factionName, time }
 function lib:GetAllCharacters()
     local out = {}
     if type(AccountPlayedDB) ~= "table" then return out end
     for key, data in pairs(AccountPlayedDB) do
-        if type(data) == "table" and data.time then
-            local realm, name = ParseKey(key)
-            out[#out + 1] = {
-                key   = key,
-                name  = name,
-                realm = realm,
-                class = data.class or "UNKNOWN",
-                time  = data.time,
-            }
+        if type(data) == "table" and type(data.time) == "number" then
+            out[#out + 1] = BuildCharacterRecord(key, data)
         end
     end
-    table.sort(out, function(a, b) return a.time > b.time end)
+    table.sort(out, function(a, b)
+        if a.time == b.time then
+            return a.key < b.key
+        end
+        return a.time > b.time
+    end)
     return out
 end
 
 --- Characters of a specific class, sorted descending by time.
 -- @param classFile  string  e.g. "WARRIOR", "MAGE"
--- Each entry: { key, name, realm, class, time }
+-- Each entry: { key, name, realm, class, race, raceName, faction, factionName, time }
 function lib:GetCharactersByClass(classFile)
     local out = {}
     if type(AccountPlayedDB) ~= "table" then return out end
     for key, data in pairs(AccountPlayedDB) do
-        if type(data) == "table" and data.class == classFile and data.time then
-            local realm, name = ParseKey(key)
-            out[#out + 1] = {
-                key   = key,
-                name  = name,
-                realm = realm,
-                class = data.class,
-                time  = data.time,
-            }
+        if type(data) == "table" and data.class == classFile and type(data.time) == "number" then
+            out[#out + 1] = BuildCharacterRecord(key, data)
         end
     end
-    table.sort(out, function(a, b) return a.time > b.time end)
+    table.sort(out, function(a, b)
+        if a.time == b.time then
+            return a.key < b.key
+        end
+        return a.time > b.time
+    end)
     return out
 end
 
@@ -163,7 +198,7 @@ function lib:GetCharacterCount()
     local n = 0
     if type(AccountPlayedDB) ~= "table" then return n end
     for _, data in pairs(AccountPlayedDB) do
-        if type(data) == "table" and data.time then
+        if type(data) == "table" and type(data.time) == "number" then
             n = n + 1
         end
     end
@@ -175,14 +210,13 @@ end
 ------------------------------------------------------------------------
 
 --- Data for a specific character, or nil if not tracked.
--- Returns { key, name, realm, class, time }
+-- Returns { key, name, realm, class, race, raceName, faction, factionName, time }
 function lib:GetCharacterData(realm, name)
     if type(AccountPlayedDB) ~= "table" then return nil end
     local key  = realm .. "-" .. name
     local data = AccountPlayedDB[key]
-    if type(data) == "table" and data.time then
-        return { key = key, name = name, realm = realm,
-                 class = data.class or "UNKNOWN", time = data.time }
+    if type(data) == "table" and type(data.time) == "number" then
+        return BuildCharacterRecord(key, data)
     end
     return nil
 end
@@ -245,7 +279,7 @@ end
 --   local AP = LibStub("AccountPlayed-1.0")
 --
 --   -- Subscribe:
---   AP:OnCharacterUpdated("MyAddon", function(realm, name, seconds, class)
+--   AP:OnCharacterUpdated("MyAddon", function(realm, name, seconds, class, race, faction)
 --       print(realm, name, seconds, class)
 --   end)
 --
@@ -258,7 +292,7 @@ lib._consumers = lib._consumers or {}
 
 --- Subscribe to CharacterUpdated.
 -- @param name  string  A unique key for your addon (used to unsubscribe later).
--- @param fn    function  Called as fn(realm, name, seconds, classFile).
+-- @param fn    function  Called as fn(realm, name, seconds, classFile, raceFile, factionFile).
 function lib:OnCharacterUpdated(name, fn)
     assert(type(name) == "string" and name ~= "", "OnCharacterUpdated: 'name' must be a non-empty string")
     assert(type(fn)   == "function",              "OnCharacterUpdated: 'fn' must be a function")
@@ -268,8 +302,8 @@ function lib:OnCharacterUpdated(name, fn)
 
     -- Each consumer gets its own handler table (CallbackHandler requirement).
     local handler = {
-        _fn = function(event, realm, charName, seconds, classFile)
-            fn(realm, charName, seconds, classFile)
+        _fn = function(event, realm, charName, seconds, classFile, raceFile, factionFile)
+            fn(realm, charName, seconds, classFile, raceFile, factionFile)
         end,
     }
     self._consumers[name] = handler
@@ -309,13 +343,21 @@ if mainFrame then
             local name    = UnitName("player")
             local realm   = CurrentRealmName()
             local _, cls  = UnitClass("player")
+            local _, race = UnitRace("player")
+            local faction = UnitFactionGroup("player")
 
-            -- Only fire when the DB actually accepted the new value
-            -- (the main addon skips values that are not newer).
+            -- Only fire when the DB contains the /played value that was just reported.
             local key  = realm and name and (realm .. "-" .. name)
             local data = key and AccountPlayedDB and AccountPlayedDB[key]
             if data and type(data) == "table" and data.time == seconds then
-                lib.callbacks:Fire("CharacterUpdated", realm, name, seconds, cls or "UNKNOWN")
+                lib.callbacks:Fire(
+                    "CharacterUpdated",
+                    realm,
+                    name,
+                    seconds,
+                    cls or "UNKNOWN",
+                    race or "UNKNOWN",
+                    faction or "UNKNOWN")
             end
         end
     end)
