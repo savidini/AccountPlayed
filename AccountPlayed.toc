@@ -1,4 +1,4 @@
-## Interface: 11508, 20505, 50503, 120000, 120001, 120005
+## Interface: 11509, 20505, 50503, 120005, 120007, 120100
 ## Version: 1.7.0
 ## Title: Account Played
 ## Notes: get account /played and view class, character, race, and faction distributions (/aplayed show OR minimap button)
@@ -19,3 +19,4 @@ AccountPlayed.lua
 MinimapButton.lua
 Settings.lua
 API.lua
+
