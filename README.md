@@ -13,6 +13,9 @@ Simple WoW addon to track and display /played time. sorting by class across all 
 - View optional race and faction distribution tabs
 - Sorted by (class / total account played) as a percentage
 - Toggle distribution tabs between bar and pie chart views
+- Bars show each group's share of total account playtime (the same scale as the percentages).
+- Hover a donut segment or its legend row to highlight the group and see its share and time in the center.
+- Race colors remain consistent when rankings change; character rows include realms.
 - See total tracked character count in the popup footer
 - Small popup UI (resize, drag, move, and scroll as you please!)
 - Minimap button to toggle UI (fades when mouse is not over minimap)
@@ -33,6 +36,12 @@ Simple WoW addon to track and display /played time. sorting by class across all 
 **Saved data note:**
 Race and faction are captured the next time each character reports `/played`.
 Older entries are preserved and appear in an `Unknown` bucket until that character is logged in again.
+
+**Development checks:** Run `python -m pip install --target .test-deps lupa`, then
+`python tests/check_charts.py` to compile the addon as Lua 5.1 and check chart logic.
+In WoW, check both chart modes at narrow and wide window sizes, hover the donut
+and legend, and switch between all four tabs. Check empty data and text scaling
+in the addon settings as well. Automated checks do not render WoW frames.
 
 **Deprecated** (will be removed in a future update):
 - `/apclasswin` - toggle class time window (use new API: `/aplayed show`)

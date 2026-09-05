@@ -619,8 +619,8 @@ local PIE_FRAME_H       = 168
 local PIE_RADIUS        = 58
 local PIE_SEGMENT_W     = 4
 local PIE_SEGMENT_H     = 14
-local PIE_INNER_RADIUS  = PIE_RADIUS - PIE_SEGMENT_H
-local PIE_OUTER_RADIUS  = PIE_RADIUS + PIE_SEGMENT_H
+local PIE_INNER_RADIUS  = PIE_RADIUS - PIE_SEGMENT_H / 2
+local PIE_OUTER_RADIUS  = PIE_RADIUS + PIE_SEGMENT_H / 2
 local LABEL_COL_W       = 150
 local VALUE_COL_W       = 110
 local RIGHT_MARGIN      = 4
@@ -659,7 +659,12 @@ local function GetGroupColor(groupKind, groupKey, index)
     elseif groupKey == "UNKNOWN" then
         return { r = 0.55, g = 0.55, b = 0.55 }
     end
-    return CopyColor(RACE_PALETTE[((index or 1) - 1) % #RACE_PALETTE + 1])
+    -- Keep a race's color stable when playtime changes its rank.
+    local hash = 0
+    for i = 1, #groupKey do
+        hash = (hash * 31 + string.byte(groupKey, i)) % 65521
+    end
+    return CopyColor(RACE_PALETTE[hash % #RACE_PALETTE + 1])
 end
 
 local function GetGroupLabel(groupKind, groupKey, data)
@@ -785,6 +790,25 @@ local function ShowEntryTooltip(owner, entry)
     GameTooltip:Show()
 end
 
+local function HighlightPieEntry(frame, entry)
+    if not frame or not frame.pieEntries then return end
+    for _, slice in ipairs(AP.pieSlices) do
+        slice:SetAlpha((not entry or slice.entry == entry) and 1 or 0.3)
+    end
+    for _, row in ipairs(AP.popupRows) do
+        row.highlight:SetShown(entry ~= nil and row.entry == entry)
+    end
+    local text = frame.pieFrame.centerText
+    if entry then
+        text:SetText(string.format("%.1f%%\n%s", entry.pieShare * 100,
+            FormatTimeSmart(entry.time, AccountPlayedPopupDB.useYears)))
+        text:SetTextColor(entry.color.r, entry.color.g, entry.color.b)
+    else
+        text:SetText(FormatTimeTotal(frame.pieAccountTotal, AccountPlayedPopupDB.useYears))
+        text:SetTextColor(1, 0.82, 0)
+    end
+end
+
 local function CreateDistributionRow(parent)
     local row = CreateFrame("Button", nil, parent)
     row:SetHeight(ROW_H)
@@ -829,11 +853,13 @@ local function CreateDistributionRow(parent)
     row:SetScript("OnEnter", function(self)
         self.highlight:Show()
         if self.entry then
+            HighlightPieEntry(AP.popupFrame, self.entry)
             ShowEntryTooltip(self, self.entry)
         end
     end)
 
     row:SetScript("OnLeave", function(self)
+        HighlightPieEntry(AP.popupFrame, nil)
         self.highlight:Hide()
         GameTooltip:Hide()
     end)
@@ -1002,6 +1028,7 @@ local function HidePie(frame)
         frame.pieFrame:Hide()
     end
     if frame.pieHitFrame then
+        frame.pieHitFrame:SetScript("OnUpdate", nil)
         frame.pieHitFrame.entry = nil
         frame.pieHitFrame:Hide()
     end
@@ -1033,7 +1060,7 @@ local function GetEntryAtPieRatio(entries, ratio)
     local cumulative = 0
     for _, entry in ipairs(entries) do
         cumulative = cumulative + (entry.pieShare or 0)
-        if ratio <= cumulative then
+        if (entry.pieShare or 0) > 0 and ratio < cumulative then
             return entry
         end
     end
@@ -1069,6 +1096,7 @@ local function UpdatePieHover(hitFrame)
 
     if entry ~= hitFrame.entry then
         hitFrame.entry = entry
+        HighlightPieEntry(parent, entry)
         if entry then
             ShowEntryTooltip(hitFrame, entry)
         else
@@ -1091,9 +1119,8 @@ local function RenderPie(frame, entries, accountTotal)
     frame.pieEntries = entries
     frame.pieAccountTotal = accountTotal
 
-    local topEntry = entries[1]
-    frame.pieFrame.centerText:SetText(string.format("%s\n%s", topEntry.label, FormatDistributionValue(topEntry.time, accountTotal)))
-    frame.pieFrame.centerText:SetTextColor(topEntry.color.r, topEntry.color.g, topEntry.color.b)
+    frame.pieFrame.centerText:SetText(FormatTimeTotal(accountTotal, AccountPlayedPopupDB.useYears))
+    frame.pieFrame.centerText:SetTextColor(1, 0.82, 0)
 
     local currentIndex = 1
     local currentEnd = entries[1].time / accountTotal
@@ -1110,8 +1137,10 @@ local function RenderPie(frame, entries, accountTotal)
         end
 
         local entry = entries[currentIndex]
+        slice.entry = entry
+        slice:SetAlpha(1)
         local color = entry and entry.color or { r = 0.4, g = 0.4, b = 0.4 }
-        local angle = (i - 1) / PIE_SLICE_COUNT * math.pi * 2
+        local angle = ratio * math.pi * 2
         local x = math.cos(angle) * PIE_RADIUS
         local y = math.sin(angle) * PIE_RADIUS
 
@@ -1182,6 +1211,10 @@ local function UpdateDistributionRow(row, entry, accountTotal, topTime, usePie)
     row.classText:SetText(entry.label)
     row.classText:SetTextColor(entry.color.r, entry.color.g, entry.color.b)
     row.valueText:SetText(FormatDistributionValue(entry.time, accountTotal))
+    row.valueText:SetWidth(math.max(VALUE_COL_W, row.valueText:GetStringWidth() + 8))
+    row.bar:ClearAllPoints()
+    row.bar:SetPoint("LEFT", row.classText, "RIGHT", 8, 0)
+    row.bar:SetPoint("RIGHT", row.valueText, "LEFT", -8, 0)
 
     row.classText:ClearAllPoints()
     if usePie then
@@ -1195,7 +1228,7 @@ local function UpdateDistributionRow(row, entry, accountTotal, topTime, usePie)
         row.classText:SetPoint("LEFT", row, "LEFT", 0, 0)
         row.classText:SetWidth(LABEL_COL_W)
         row.bar:Show()
-        row.bar:SetValue(topTime > 0 and entry.time / topTime or 0)
+        row.bar:SetValue(accountTotal > 0 and entry.time / accountTotal or 0)
         row.bar:SetStatusBarColor(entry.color.r, entry.color.g, entry.color.b)
     end
 
@@ -1260,7 +1293,7 @@ local function UpdateCharacterRow(row, char)
 
     row.charKey = char.key
     row.charData = char
-    row.nameText:SetText(char.name)
+    row.nameText:SetText(char.name .. " - " .. char.realm)
     row.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
     row.metaText:SetText(meta)
     row.timeText:SetText(FormatTimeDetailed(char.time, AccountPlayedPopupDB.useYears))
@@ -1464,7 +1497,7 @@ local function CreatePopup()
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", 15, -78)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -44, 50)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -44, 78)
     f.scrollFrame = scrollFrame
 
     local content = CreateFrame("Frame", nil, scrollFrame)
@@ -1508,6 +1541,7 @@ local function CreatePopup()
     f.pieHitFrame:SetScript("OnLeave", function(self)
         self:SetScript("OnUpdate", nil)
         self.entry = nil
+        HighlightPieEntry(self.ownerFrame, nil)
         GameTooltip:Hide()
     end)
     f.pieHitFrame:SetScript("OnClick", function(self, button)
@@ -1527,19 +1561,27 @@ local function CreatePopup()
 
     f.pieFrame.centerText = f.pieFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     f.pieFrame.centerText:SetPoint("CENTER", f.pieAnchor, "CENTER", 0, 0)
-    f.pieFrame.centerText:SetSize(150, 42)
+    f.pieFrame.centerText:SetSize(82, 42)
     f.pieFrame.centerText:SetJustifyH("CENTER")
     f.pieFrame.centerText:SetJustifyV("MIDDLE")
     f.pieFrame.centerText:SetWordWrap(true)
 
     f.totalRow = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     f.totalRow:SetPoint("BOTTOMLEFT", 15, 18)
+    f.totalRow:SetPoint("BOTTOMRIGHT", -24, 18)
+    f.totalRow:SetJustifyH("LEFT")
+    f.totalRow:SetWordWrap(false)
     f.totalRow:SetTextColor(1, 0.82, 0)
 
     EnsureDistributionRows(f, 8)
     EnsureCharacterRows(f, 8)
 
     local function UpdateLayoutSizes(self)
+        -- Keep chart controls on their own line at narrow window sizes.
+        local compact = self:GetWidth() < 620
+        self.chartButtons.bar:ClearAllPoints()
+        self.chartButtons.bar:SetPoint("TOPRIGHT", self, "TOPRIGHT", -84, compact and -74 or -42)
+        self.scrollFrame:SetPoint("TOPLEFT", 15, compact and -110 or -78)
         local cw = self.scrollFrame:GetWidth()
         if not cw or cw <= 1 then
             cw = math.max(1, self:GetWidth() - 59)
@@ -1568,13 +1610,14 @@ local function CreatePopup()
         AccountPlayedPopupDB.height = self:GetHeight()
 
         UpdateLayoutSizes(self)
+        if self.UpdateDisplay then self:UpdateDisplay() end
         UpdateScrollBarVisibility(self)
     end)
 
     -- Format toggle checkbox
     local checkBox = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
     checkBox:SetSize(24, 24)
-    checkBox:SetPoint("BOTTOMRIGHT", -28, 20)
+    checkBox:SetPoint("BOTTOMRIGHT", -28, 44)
     checkBox:SetChecked(AccountPlayedPopupDB.useYears)
 
     checkBox.text = checkBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
